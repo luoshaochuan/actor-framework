@@ -212,7 +212,7 @@ expected<timespan> config_value::to_timespan() const {
 }
 
 expected<std::string> config_value::to_string() const {
-  auto f = detail::make_overload(
+  auto f = detail::make_overload( //
     [](const none_t&) { return std::string{"null"}; },
     [](const auto& x) {
       std::string result;
@@ -222,7 +222,58 @@ expected<std::string> config_value::to_string() const {
     [](const uri& x) { return caf::to_string(x); },
     [](const std::string& x) { return x; },
     [](const list& x) { return deep_to_string(x); },
-    [](const dictionary& x) { return deep_to_string(x); });
+    [this](const dictionary&) {
+      // TODO: deep_to_string prints lists of pairs when passing the dictionary
+      //       directly.
+      return deep_to_string(*this);
+    });
+
+  return visit(f, data_);
+}
+
+expected<config_value::list> config_value::to_list() const {
+  using result_type = expected<list>;
+  auto f = detail::make_overload(
+    no_conversions<list, none_t, bool, integer, real, timespan, uri>(),
+    [](const std::string& x) {
+      list tmp;
+      if (detail::parse(x, tmp) == none)
+        return result_type{std::move(tmp)};
+      std::string msg = "cannot convert ";
+      detail::print_escaped(msg, x);
+      msg += " to a list";
+      return result_type{make_error(sec::conversion_failed, std::move(msg))};
+    },
+    [](const list& x) { return result_type{x}; },
+    [](const dictionary& x) {
+      list tmp;
+      for (const auto& [key, val] : x) {
+        list kvp;
+        kvp.reserve(2);
+        kvp.emplace_back(key);
+        kvp.emplace_back(val);
+        tmp.emplace_back(std::move(kvp));
+      }
+      return result_type{std::move(tmp)};
+    });
+  return visit(f, data_);
+}
+
+expected<config_value::dictionary> config_value::to_dictionary() const {
+  using result_type = expected<dictionary>;
+  auto f = detail::make_overload(
+    no_conversions<dictionary, none_t, bool, integer, timespan, real, uri,
+                   list>(),
+    [](const std::string& x) {
+      dictionary tmp;
+      if (detail::parse(x, tmp) == none)
+        return result_type{std::move(tmp)};
+      std::string msg = "cannot convert ";
+      detail::print_escaped(msg, x);
+      msg += " to a dictionary";
+      return result_type{make_error(sec::conversion_failed, std::move(msg))};
+    },
+    [](const dictionary& x) { return result_type{x}; });
   return visit(f, data_);
 }
 

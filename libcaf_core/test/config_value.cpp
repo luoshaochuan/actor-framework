@@ -340,11 +340,104 @@ SCENARIO("get_as can convert config values to strings") {
         CHECK_EQ(get_as<string>(cv_true), "true");
         CHECK_EQ(get_as<string>(cv_false), "false");
         CHECK_EQ(get_as<string>(cv_empty_list), "[]");
-        CHECK_EQ(get_as<string>(cv_empty_dict), "[]");
+        CHECK_EQ(get_as<string>(cv_empty_dict), "{}");
         CHECK_EQ(get_as<string>(config_value{42}), "42");
         CHECK_EQ(get_as<string>(config_value{4.2}), "4.2");
         CHECK_EQ(get_as<string>(config_value{timespan{4}}), "4ns");
         CHECK_EQ(get_as<string>(cv_caf_uri), "https://actor-framework.org");
+      }
+    }
+  }
+}
+
+SCENARIO("get_as can convert config values to lists") {
+  using list = config_value::list;
+  GIVEN("a config value with value [1, 2, 3]") {
+    auto x = make_config_value_list(1, 2, 3);
+    WHEN("using get_as with list") {
+      THEN("conversion succeeds") {
+        auto maybe_res = get_as<list>(x);
+        if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
+          auto& res = *maybe_res;
+          CHECK_EQ(get_as<int>(res[0]), 1);
+          CHECK_EQ(get_as<int>(res[1]), 2);
+          CHECK_EQ(get_as<int>(res[2]), 3);
+        }
+      }
+    }
+  }
+  GIVEN("a config value with value \"[1, 2, 3]\"") {
+    auto x = config_value("[1, 2, 3]"s);
+    WHEN("using get_as with list") {
+      THEN("conversion succeeds") {
+        auto maybe_res = get_as<list>(x);
+        if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
+          auto& res = *maybe_res;
+          CHECK_EQ(get_as<int>(res[0]), 1);
+          CHECK_EQ(get_as<int>(res[1]), 2);
+          CHECK_EQ(get_as<int>(res[2]), 3);
+        }
+      }
+    }
+  }
+}
+
+SCENARIO("get_as can convert config values to dictionaries") {
+  using string = config_value::string;
+  using dictionary = config_value::dictionary;
+  GIVEN("a config value with value {a = 1, b = 2, c = 3}") {
+    auto dict = config_value::dictionary{
+      {"a", config_value{1}},
+      {"b", config_value{2}},
+      {"c", config_value{3}},
+    };
+    auto x = config_value{std::move(dict)};
+    WHEN("using get_as with dictionary") {
+      THEN("conversion succeeds") {
+        auto maybe_res = get_as<dictionary>(x);
+        if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
+          auto& res = *maybe_res;
+          CHECK_EQ(get_as<int>(res["a"]), 1);
+          CHECK_EQ(get_as<int>(res["b"]), 2);
+          CHECK_EQ(get_as<int>(res["c"]), 3);
+        }
+      }
+    }
+    WHEN("using get_as with list") {
+      THEN("CAF converts the dictionary to a list of key value pairs") {
+        auto maybe_res = get_as<list>(x);
+        if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
+          auto& res = *maybe_res;
+          if (auto kvp = unbox(get_as<list>(res[0]));
+              CHECK_EQ(kvp.size(), 2u)) {
+            CHECK_EQ(get_as<string>(kvp[0]), "a");
+            CHECK_EQ(get_as<int>(kvp[1]), 1);
+          }
+          if (auto kvp = unbox(get_as<list>(res[1]));
+              CHECK_EQ(kvp.size(), 2u)) {
+            CHECK_EQ(get_as<string>(kvp[0]), "b");
+            CHECK_EQ(get_as<int>(kvp[1]), 2);
+          }
+          if (auto kvp = unbox(get_as<list>(res[2]));
+              CHECK_EQ(kvp.size(), 2u)) {
+            CHECK_EQ(get_as<string>(kvp[0]), "c");
+            CHECK_EQ(get_as<int>(kvp[1]), 3);
+          }
+        }
+      }
+    }
+  }
+  GIVEN("a config value with value {a = 1, b = 2, c = 3}") {
+    auto x = config_value("{a = 1, b = 2, c = 3}"s);
+    WHEN("using get_as with dictionary") {
+      THEN("conversion succeeds") {
+        auto maybe_res = get_as<dictionary>(x);
+        if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
+          auto& res = *maybe_res;
+          CHECK_EQ(get_as<int>(res["a"]), 1);
+          CHECK_EQ(get_as<int>(res["b"]), 2);
+          CHECK_EQ(get_as<int>(res["c"]), 3);
+        }
       }
     }
   }

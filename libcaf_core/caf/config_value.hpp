@@ -170,6 +170,10 @@ private:
 
   expected<std::string> to_string() const;
 
+  expected<list> to_list() const;
+
+  expected<dictionary> to_dictionary() const;
+
   // -- auto conversion of related types ---------------------------------------
 
   void set(none_t) {
@@ -290,6 +294,10 @@ expected<T> get_as(const config_value& value) {
     return value.to_timespan();
   } else if constexpr (std::is_same<T, std::string>::value) {
     return value.to_string();
+  } else if constexpr (std::is_same<T, config_value::list>::value) {
+    return value.to_list();
+  } else if constexpr (std::is_same<T, config_value::dictionary>::value) {
+    return value.to_dictionary();
   } else {
     auto err = make_error(sec::conversion_failed, "not implemented yet");
     return {std::move(err)};
