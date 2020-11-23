@@ -108,217 +108,202 @@ struct fixture {
 
 CAF_TEST_FIXTURE_SCOPE(config_value_tests, fixture)
 
-CAF_TEST(get_as can convert config values to boolean) {
-  CAF_MESSAGE("Given a config value x with value true or false.");
-  {
-    CAF_MESSAGE("When using get_as with bool.");
-    {
-      CAF_MESSAGE("Then conversion succeeds.");
-      CAF_CHECK_EQUAL(get_as<bool>(cv_true), true);
-      CAF_CHECK_EQUAL(get_as<bool>(cv_false), false);
+SCENARIO("get_as can convert config values to boolean") {
+  GIVEN("a config value x with value true or false") {
+    WHEN("using get_as with bool") {
+      THEN("conversion succeeds") {
+        CHECK_EQ(get_as<bool>(cv_true), true);
+        CHECK_EQ(get_as<bool>(cv_false), false);
+      }
     }
   }
-  CAF_MESSAGE("Given a config value x with value \"true\" or \"false\".");
-  {
-    CAF_MESSAGE("When using get_as with bool.");
-    {
-      CAF_MESSAGE("Then conversion succeeds.");
-      CAF_CHECK_EQUAL(get_as<bool>(config_value{"true"s}), true);
-      CAF_CHECK_EQUAL(get_as<bool>(config_value{"false"s}), false);
+  GIVEN("a config value x with value \"true\" or \"false\"") {
+    WHEN("using get_as with bool") {
+      THEN("conversion succeeds") {
+        CHECK_EQ(get_as<bool>(config_value{"true"s}), true);
+        CHECK_EQ(get_as<bool>(config_value{"false"s}), false);
+      }
     }
   }
-  CAF_MESSAGE("Given non-boolean config_values.");
-  {
-    CAF_MESSAGE("When using get_as with bool.");
-    {
-      CAF_MESSAGE("Then conversion fails.");
-      CAF_CHECK_EQUAL(get_as<bool>(cv_null), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<bool>(cv_empty_uri), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<bool>(cv_empty_list), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<bool>(cv_empty_dict), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<bool>(config_value{0}), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<bool>(config_value{1}), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<bool>(config_value{0.f}), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<bool>(config_value{1.f}), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<bool>(config_value{""s}), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<bool>(config_value{"1"s}), sec::conversion_failed);
+  GIVEN("non-boolean config_values") {
+    WHEN("using get_as with bool") {
+      THEN("conversion fails") {
+        CHECK_EQ(get_as<bool>(cv_null), sec::conversion_failed);
+        CHECK_EQ(get_as<bool>(cv_empty_uri), sec::conversion_failed);
+        CHECK_EQ(get_as<bool>(cv_empty_list), sec::conversion_failed);
+        CHECK_EQ(get_as<bool>(cv_empty_dict), sec::conversion_failed);
+        CHECK_EQ(get_as<bool>(config_value{0}), sec::conversion_failed);
+        CHECK_EQ(get_as<bool>(config_value{1}), sec::conversion_failed);
+        CHECK_EQ(get_as<bool>(config_value{0.f}), sec::conversion_failed);
+        CHECK_EQ(get_as<bool>(config_value{1.f}), sec::conversion_failed);
+        CHECK_EQ(get_as<bool>(config_value{""s}), sec::conversion_failed);
+        CHECK_EQ(get_as<bool>(config_value{"1"s}), sec::conversion_failed);
+      }
     }
   }
 }
 
-CAF_TEST(get_as can convert config values to integers) {
-  CAF_MESSAGE("Given a config value x with value 32,768.");
-  {
+SCENARIO("get_as can convert config values to integers") {
+  GIVEN("a config value x with value 32,768") {
     auto x = config_value{32'768};
-    CAF_MESSAGE("When using get_as with integer types.");
-    {
-      CAF_MESSAGE("Then conversion fails if bounds checks fail.");
-      CAF_CHECK_EQUAL(get_as<uint64_t>(x), 32'768u);
-      CAF_CHECK_EQUAL(get_as<int64_t>(x), 32'768);
-      CAF_CHECK_EQUAL(get_as<uint32_t>(x), 32'768u);
-      CAF_CHECK_EQUAL(get_as<int32_t>(x), 32'768);
-      CAF_CHECK_EQUAL(get_as<uint16_t>(x), 32'768u);
-      CAF_CHECK_EQUAL(get_as<int16_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<uint8_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int8_t>(x), sec::conversion_failed);
+    WHEN("using get_as with integer types") {
+      THEN("conversion fails if bounds checks fail") {
+        CHECK_EQ(get_as<uint64_t>(x), 32'768u);
+        CHECK_EQ(get_as<int64_t>(x), 32'768);
+        CHECK_EQ(get_as<uint32_t>(x), 32'768u);
+        CHECK_EQ(get_as<int32_t>(x), 32'768);
+        CHECK_EQ(get_as<uint16_t>(x), 32'768u);
+        CHECK_EQ(get_as<int16_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<uint8_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<int8_t>(x), sec::conversion_failed);
+      }
     }
   }
-  CAF_MESSAGE("Given a config value x with value -5.");
-  {
+  GIVEN("a config value x with value -5") {
     auto x = config_value{-5};
-    CAF_MESSAGE("When using get_as with integer types.");
-    {
-      CAF_MESSAGE("Then conversion fails for all unsigned types.");
-      CAF_CHECK_EQUAL(get_as<uint64_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(x), -5);
-      CAF_CHECK_EQUAL(get_as<uint32_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int32_t>(x), -5);
-      CAF_CHECK_EQUAL(get_as<uint16_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int16_t>(x), -5);
-      CAF_CHECK_EQUAL(get_as<uint8_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int8_t>(x), -5);
+    WHEN("using get_as with integer types") {
+      THEN("conversion fails for all unsigned types") {
+        CAF_CHECK_EQUAL(get_as<uint64_t>(x), sec::conversion_failed);
+        CAF_CHECK_EQUAL(get_as<int64_t>(x), -5);
+        CAF_CHECK_EQUAL(get_as<uint32_t>(x), sec::conversion_failed);
+        CAF_CHECK_EQUAL(get_as<int32_t>(x), -5);
+        CAF_CHECK_EQUAL(get_as<uint16_t>(x), sec::conversion_failed);
+        CAF_CHECK_EQUAL(get_as<int16_t>(x), -5);
+        CAF_CHECK_EQUAL(get_as<uint8_t>(x), sec::conversion_failed);
+        CAF_CHECK_EQUAL(get_as<int8_t>(x), -5);
+      }
     }
   }
-  CAF_MESSAGE("Given a config value x with value \"50000\".");
-  {
+  GIVEN("a config value x with value \"50000\"") {
     auto x = config_value{"50000"s};
-    CAF_MESSAGE("When using get_as with integer types.");
-    {
-      CAF_MESSAGE("Then CAF parses the string and performs a bound check.");
-      CAF_CHECK_EQUAL(get_as<uint64_t>(x), 50'000u);
-      CAF_CHECK_EQUAL(get_as<int64_t>(x), 50'000);
-      CAF_CHECK_EQUAL(get_as<uint32_t>(x), 50'000u);
-      CAF_CHECK_EQUAL(get_as<int32_t>(x), 50'000);
-      CAF_CHECK_EQUAL(get_as<uint16_t>(x), 50'000u);
-      CAF_CHECK_EQUAL(get_as<int16_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<uint8_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int8_t>(x), sec::conversion_failed);
+    WHEN("using get_as with integer types") {
+      THEN("CAF parses the string and performs a bound check") {
+        CAF_CHECK_EQUAL(get_as<uint64_t>(x), 50'000u);
+        CAF_CHECK_EQUAL(get_as<int64_t>(x), 50'000);
+        CAF_CHECK_EQUAL(get_as<uint32_t>(x), 50'000u);
+        CAF_CHECK_EQUAL(get_as<int32_t>(x), 50'000);
+        CAF_CHECK_EQUAL(get_as<uint16_t>(x), 50'000u);
+        CAF_CHECK_EQUAL(get_as<int16_t>(x), sec::conversion_failed);
+        CAF_CHECK_EQUAL(get_as<uint8_t>(x), sec::conversion_failed);
+        CAF_CHECK_EQUAL(get_as<int8_t>(x), sec::conversion_failed);
+      }
     }
   }
-  CAF_MESSAGE("Given a config value x with value 50.0.");
-  {
+  GIVEN("a config value x with value 50.0") {
     auto x = config_value{50.0};
-    CAF_MESSAGE("When using get_as with integer types.");
-    {
-      CAF_MESSAGE("Then CAF parses the string and performs a bound check.");
-      CAF_CHECK_EQUAL(get_as<uint64_t>(x), 50u);
-      CAF_CHECK_EQUAL(get_as<int64_t>(x), 50);
-      CAF_CHECK_EQUAL(get_as<uint32_t>(x), 50u);
-      CAF_CHECK_EQUAL(get_as<int32_t>(x), 50);
-      CAF_CHECK_EQUAL(get_as<uint16_t>(x), 50u);
-      CAF_CHECK_EQUAL(get_as<int16_t>(x), 50);
-      CAF_CHECK_EQUAL(get_as<uint8_t>(x), 50u);
-      CAF_CHECK_EQUAL(get_as<int8_t>(x), 50);
+    WHEN("using get_as with integer types") {
+      THEN("CAF parses the string and performs a bound check") {
+        CHECK_EQ(get_as<uint64_t>(x), 50u);
+        CHECK_EQ(get_as<int64_t>(x), 50);
+        CHECK_EQ(get_as<uint32_t>(x), 50u);
+        CHECK_EQ(get_as<int32_t>(x), 50);
+        CHECK_EQ(get_as<uint16_t>(x), 50u);
+        CHECK_EQ(get_as<int16_t>(x), 50);
+        CHECK_EQ(get_as<uint8_t>(x), 50u);
+        CHECK_EQ(get_as<int8_t>(x), 50);
+      }
     }
   }
-  CAF_MESSAGE("Given a config value x with value 50.05.");
-  {
+  GIVEN("a config value x with value 50.05") {
     auto x = config_value{50.05};
-    CAF_MESSAGE("When using get_as with integer types.");
-    {
-      CAF_MESSAGE("Then CAF fails to convert the real to an integer.");
-      CAF_CHECK_EQUAL(get_as<uint64_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<uint32_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int32_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<uint16_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int16_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<uint8_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int8_t>(x), sec::conversion_failed);
+    WHEN("using get_as with integer types") {
+      THEN("CAF fails to convert the real to an integer") {
+        CHECK_EQ(get_as<uint64_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<uint32_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<int32_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<uint16_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<int16_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<uint8_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<int8_t>(x), sec::conversion_failed);
+      }
     }
   }
-  CAF_MESSAGE("Given a config value x with value \"50.000\".");
-  {
+  GIVEN("a config value x with value \"50.000\"") {
     auto x = config_value{"50.000"s};
-    CAF_MESSAGE("When using get_as with integer types.");
-    {
-      CAF_MESSAGE("Then CAF parses the string and performs a bound check.");
-      CAF_CHECK_EQUAL(get_as<uint64_t>(x), 50u);
-      CAF_CHECK_EQUAL(get_as<int64_t>(x), 50);
-      CAF_CHECK_EQUAL(get_as<uint32_t>(x), 50u);
-      CAF_CHECK_EQUAL(get_as<int32_t>(x), 50);
-      CAF_CHECK_EQUAL(get_as<uint16_t>(x), 50u);
-      CAF_CHECK_EQUAL(get_as<int16_t>(x), 50);
-      CAF_CHECK_EQUAL(get_as<uint8_t>(x), 50u);
-      CAF_CHECK_EQUAL(get_as<int8_t>(x), 50);
+    WHEN("using get_as with integer types") {
+      THEN("CAF parses the string and performs a bound check") {
+        CHECK_EQ(get_as<uint64_t>(x), 50u);
+        CHECK_EQ(get_as<int64_t>(x), 50);
+        CHECK_EQ(get_as<uint32_t>(x), 50u);
+        CHECK_EQ(get_as<int32_t>(x), 50);
+        CHECK_EQ(get_as<uint16_t>(x), 50u);
+        CHECK_EQ(get_as<int16_t>(x), 50);
+        CHECK_EQ(get_as<uint8_t>(x), 50u);
+        CHECK_EQ(get_as<int8_t>(x), 50);
+      }
     }
   }
-  CAF_MESSAGE("Given a config value x with value \"50.05\".");
-  {
+  GIVEN("a config value x with value \"50.05\"") {
     auto x = config_value{"50.05"s};
-    CAF_MESSAGE("When using get_as with integer types.");
-    {
-      CAF_MESSAGE("Then CAF fails to convert the real to an integer.");
-      CAF_CHECK_EQUAL(get_as<uint64_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<uint32_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int32_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<uint16_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int16_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<uint8_t>(x), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int8_t>(x), sec::conversion_failed);
+    WHEN("using get_as with integer types") {
+      THEN("CAF fails to convert the real to an integer") {
+        CHECK_EQ(get_as<uint64_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<uint32_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<int32_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<uint16_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<int16_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<uint8_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<int8_t>(x), sec::conversion_failed);
+      }
     }
   }
-  CAF_MESSAGE("Given config_values of null, URI, boolean, list or dictionary.");
-  {
-    CAF_MESSAGE("When using get_as with integer types.");
-    {
-      CAF_MESSAGE("Then conversion fails.");
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_null), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_true), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_false), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_empty_uri), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_empty_list), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_empty_dict), sec::conversion_failed);
+  GIVEN("config_values of null, URI, boolean, list or dictionary") {
+    WHEN("using get_as with integer types") {
+      THEN("conversion fails") {
+        CHECK_EQ(get_as<int64_t>(cv_null), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(cv_true), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(cv_false), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(cv_empty_uri), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(cv_empty_list), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(cv_empty_dict), sec::conversion_failed);
+      }
     }
   }
 }
 
-CAF_TEST(get_as can convert config values to floating point numbers) {
-  CAF_MESSAGE("Given a config value x with value 1.79769e+308.");
-  {
+SCENARIO("get_as can convert config values to floating point numbers") {
+  GIVEN("a config value x with value 1.79769e+308") {
     auto x = config_value{1.79769e+308};
-    CAF_MESSAGE("When using get_as with floating point types.");
-    {
-      CAF_MESSAGE("Then conversion fails if bounds checks fail.");
-      CAF_CHECK_EQUAL(get_as<long double>(x), 1.79769e+308);
-      CAF_CHECK_EQUAL(get_as<double>(x), 1.79769e+308);
-      CAF_CHECK_EQUAL(get_as<float>(x), sec::conversion_failed);
+    WHEN("using get_as with floating point types") {
+      THEN("conversion fails if bounds checks fail") {
+        CHECK_EQ(get_as<long double>(x), 1.79769e+308);
+        CHECK_EQ(get_as<double>(x), 1.79769e+308);
+        CHECK_EQ(get_as<float>(x), sec::conversion_failed);
+      }
     }
   }
-  CAF_MESSAGE("Given a config value x with value \"3e7\".");
-  {
+  GIVEN("a config value x with value \"3e7\"") {
     auto x = config_value{"3e7"s};
-    CAF_MESSAGE("When using get_as with floating point types.");
-    {
-      CAF_MESSAGE("Then CAF parses the string and converts the value.");
-      CAF_CHECK_EQUAL(get_as<long double>(x), 3e7);
-      CAF_CHECK_EQUAL(get_as<double>(x), 3e7);
-      CAF_CHECK_EQUAL(get_as<float>(x), 3e7f);
+    WHEN("using get_as with floating point types") {
+      THEN("CAF parses the string and converts the value") {
+        CHECK_EQ(get_as<long double>(x), 3e7);
+        CHECK_EQ(get_as<double>(x), 3e7);
+        CHECK_EQ(get_as<float>(x), 3e7f);
+      }
     }
   }
-  CAF_MESSAGE("Given a config value x with value 123.");
-  {
+  GIVEN("a config value x with value 123") {
     auto x = config_value{123};
-    CAF_MESSAGE("When using get_as with floating point types.");
-    {
-      CAF_MESSAGE("Then converts the value.");
-      CAF_CHECK_EQUAL(get_as<long double>(x), 123.0);
-      CAF_CHECK_EQUAL(get_as<double>(x), 123.0);
-      CAF_CHECK_EQUAL(get_as<float>(x), 123.f);
+    WHEN("using get_as with floating point types") {
+      THEN("converts the value") {
+        CHECK_EQ(get_as<long double>(x), 123.0);
+        CHECK_EQ(get_as<double>(x), 123.0);
+        CHECK_EQ(get_as<float>(x), 123.f);
+      }
     }
   }
-  CAF_MESSAGE("Given config_values of null, URI, boolean, list or dictionary.");
-  {
-    CAF_MESSAGE("When using get_as with floating point types.");
-    {
-      CAF_MESSAGE("Then conversion fails.");
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_null), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_true), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_false), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_empty_uri), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_empty_list), sec::conversion_failed);
-      CAF_CHECK_EQUAL(get_as<int64_t>(cv_empty_dict), sec::conversion_failed);
+  GIVEN("config_values of null, URI, boolean, list or dictionary") {
+    WHEN("using get_as with floating point types") {
+      THEN("conversion fails") {
+        CHECK_EQ(get_as<int64_t>(cv_null), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(cv_true), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(cv_false), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(cv_empty_uri), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(cv_empty_list), sec::conversion_failed);
+        CHECK_EQ(get_as<int64_t>(cv_empty_dict), sec::conversion_failed);
+      }
     }
   }
 }
