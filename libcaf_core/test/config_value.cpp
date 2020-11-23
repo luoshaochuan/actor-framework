@@ -93,6 +93,7 @@ struct fixture {
   config_value cv_empty_uri;
   config_value cv_empty_list;
   config_value cv_empty_dict;
+  config_value cv_caf_uri;
 
   fixture()
     : cv_true(true),
@@ -100,7 +101,7 @@ struct fixture {
       cv_empty_uri(uri{}),
       cv_empty_list(config_value::list{}),
       cv_empty_dict(config_value::dictionary{}) {
-    // nop
+    cv_caf_uri = unbox(make_uri("https://actor-framework.org"));
   }
 };
 
@@ -287,7 +288,7 @@ SCENARIO("get_as can convert config values to floating point numbers") {
   GIVEN("a config value x with value 123") {
     auto x = config_value{123};
     WHEN("using get_as with floating point types") {
-      THEN("converts the value") {
+      THEN("CAF converts the value") {
         CHECK_EQ(get_as<long double>(x), 123.0);
         CHECK_EQ(get_as<double>(x), 123.0);
         CHECK_EQ(get_as<float>(x), 123.f);
@@ -303,6 +304,47 @@ SCENARIO("get_as can convert config values to floating point numbers") {
         CHECK_EQ(get_as<int64_t>(cv_empty_uri), sec::conversion_failed);
         CHECK_EQ(get_as<int64_t>(cv_empty_list), sec::conversion_failed);
         CHECK_EQ(get_as<int64_t>(cv_empty_dict), sec::conversion_failed);
+      }
+    }
+  }
+}
+
+SCENARIO("get_as can convert config values to timespans") {
+  using namespace std::chrono_literals;
+  GIVEN("a config value with value 42s") {
+    auto x = config_value{timespan{42s}};
+    WHEN("using get_as with timespan") {
+      THEN("conversion succeeds") {
+        CHECK_EQ(get_as<timespan>(x), timespan{42s});
+        CHECK_EQ(get_as<std::string>(x), "42s");
+      }
+    }
+    WHEN("using get_as with type other than timespan or string") {
+      THEN("conversion fails") {
+        CHECK_EQ(get_as<int64_t>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<double>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<uri>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<config_value::list>(x), sec::conversion_failed);
+        CHECK_EQ(get_as<config_value::dictionary>(x), sec::conversion_failed);
+      }
+    }
+  }
+}
+
+SCENARIO("get_as can convert config values to strings") {
+  using string = std::string;
+  GIVEN("any config value") {
+    WHEN("using get_as with string") {
+      THEN("CAF renders the value as string") {
+        CHECK_EQ(get_as<string>(cv_null), "null");
+        CHECK_EQ(get_as<string>(cv_true), "true");
+        CHECK_EQ(get_as<string>(cv_false), "false");
+        CHECK_EQ(get_as<string>(cv_empty_list), "[]");
+        CHECK_EQ(get_as<string>(cv_empty_dict), "[]");
+        CHECK_EQ(get_as<string>(config_value{42}), "42");
+        CHECK_EQ(get_as<string>(config_value{4.2}), "4.2");
+        CHECK_EQ(get_as<string>(config_value{timespan{4}}), "4ns");
+        CHECK_EQ(get_as<string>(cv_caf_uri), "https://actor-framework.org");
       }
     }
   }

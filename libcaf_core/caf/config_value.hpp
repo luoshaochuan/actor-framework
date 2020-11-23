@@ -48,6 +48,7 @@
 #include "caf/sum_type.hpp"
 #include "caf/sum_type_access.hpp"
 #include "caf/sum_type_token.hpp"
+#include "caf/timespan.hpp"
 #include "caf/timestamp.hpp"
 #include "caf/uri.hpp"
 #include "caf/variant.hpp"
@@ -74,8 +75,6 @@ public:
   using boolean = bool;
 
   using real = double;
-
-  using timespan = caf::timespan;
 
   using string = std::string;
 
@@ -166,6 +165,10 @@ private:
   expected<integer> to_integer() const;
 
   expected<real> to_real() const;
+
+  expected<timespan> to_timespan() const;
+
+  expected<std::string> to_string() const;
 
   // -- auto conversion of related types ---------------------------------------
 
@@ -283,6 +286,10 @@ expected<T> get_as(const config_value& value) {
     } else {
       return std::move(result.error());
     }
+  } else if constexpr (std::is_same<T, timespan>::value) {
+    return value.to_timespan();
+  } else if constexpr (std::is_same<T, std::string>::value) {
+    return value.to_string();
   } else {
     auto err = make_error(sec::conversion_failed, "not implemented yet");
     return {std::move(err)};
@@ -1078,7 +1085,7 @@ struct variant_inspector_traits<config_value> {
     type_id_v<config_value::integer>,
     type_id_v<config_value::boolean>,
     type_id_v<config_value::real>,
-    type_id_v<config_value::timespan>,
+    type_id_v<timespan>,
     type_id_v<uri>,
     type_id_v<config_value::string>,
     type_id_v<config_value::list>,
@@ -1124,8 +1131,8 @@ struct variant_inspector_traits<config_value> {
         continuation(tmp);
         return true;
       }
-      case type_id_v<config_value::timespan>: {
-        auto tmp = config_value::timespan{};
+      case type_id_v<timespan>: {
+        auto tmp = timespan{};
         continuation(tmp);
         return true;
       }
