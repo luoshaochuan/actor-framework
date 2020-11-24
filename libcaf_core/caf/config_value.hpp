@@ -41,6 +41,7 @@
 #include "caf/expected.hpp"
 #include "caf/fwd.hpp"
 #include "caf/inspector_access.hpp"
+#include "caf/inspector_access_type.hpp"
 #include "caf/optional.hpp"
 #include "caf/raise_error.hpp"
 #include "caf/string_algorithms.hpp"
@@ -54,9 +55,6 @@
 #include "caf/variant.hpp"
 
 namespace caf {
-
-template <class T>
-expected<T> get_as(const config_value& value);
 
 /// A type for config parameters with similar interface to a `variant`. This
 /// type is not implemented as a simple variant alias because variants cannot
@@ -153,26 +151,33 @@ public:
     return &data_;
   }
 
+  // -- utility for get_as -----------------------------------------------------
+
+  /// @private
+  expected<bool> to_boolean() const;
+
+  /// @private
+  expected<integer> to_integer() const;
+
+  /// @private
+  expected<real> to_real() const;
+
+  /// @private
+  expected<timespan> to_timespan() const;
+
+  /// @private
+  expected<std::string> to_string() const;
+
+  /// @private
+  expected<list> to_list() const;
+
+  /// @private
+  expected<dictionary> to_dictionary() const;
+
 private:
   // -- properties -------------------------------------------------------------
 
   static const char* type_name_at_index(size_t index) noexcept;
-
-  // -- utility for get_as -----------------------------------------------------
-
-  expected<bool> to_boolean() const;
-
-  expected<integer> to_integer() const;
-
-  expected<real> to_real() const;
-
-  expected<timespan> to_timespan() const;
-
-  expected<std::string> to_string() const;
-
-  expected<list> to_list() const;
-
-  expected<dictionary> to_dictionary() const;
 
   // -- auto conversion of related types ---------------------------------------
 
@@ -256,6 +261,85 @@ constexpr auto nested_cli_parsing = nested_cli_parsing_t{};
 
 // -- conversion ---------------------------------------------------------------
 
+template <class T>
+expected<T> get_as(const config_value& value);
+
+template <class T>
+expected<T> get_as(const config_value&, inspector_access_type::none) {
+  static_assert(detail::always_false_v<T>,
+                "cannot convert to T: found no a suitable inspect overload");
+}
+
+template <class T>
+expected<T> get_as(const config_value&, inspector_access_type::unsafe) {
+  static_assert(detail::always_false_v<T>,
+                "cannot deserialize types that are tagged as unsafe");
+}
+
+template <class T>
+expected<T> get_as(const config_value&, inspector_access_type::array) {
+  static_assert(detail::always_false_v<T>,
+                "cannot return an array from a function");
+}
+
+// inspector_access_type::builtin
+
+// inspector_access_type::specialization
+
+// inspector_access_type::inspect_value
+
+// inspector_access_type::inspect
+
+// inspector_access_type::trivial
+
+// inspector_access_type::integral
+
+// inspector_access_type::enumeration
+
+// inspector_access_type::empty
+
+template <class T, size_t... Is>
+expected<T>
+get_as_tuple(const config_value::list& x, std::index_sequence<Is...>) {
+  auto boxed = std::make_tuple(get_as<std::tuple_element_t<Is, T>>(x[Is])...);
+  if ((get<Is>(boxed) && ...))
+    return T{std::move(*get<Is>(boxed))...};
+  else
+    return make_error(sec::conversion_failed, "invalid element types");
+}
+
+template <class T>
+expected<T> get_as(const config_value& x, inspector_access_type::tuple) {
+  if (auto wrapped_values = x.to_list()) {
+    static constexpr size_t n = std::tuple_size<T>::value;
+    if (wrapped_values->size() == n)
+      return get_as_tuple<T>(*wrapped_values, std::make_index_sequence<n>{});
+    else
+      return make_error(sec::conversion_failed, "wrong number of arguments");
+  } else {
+    return {std::move(wrapped_values.error())};
+  }
+}
+
+// inspector_access_type::map
+
+template <class T>
+expected<T> get_as(const config_value& x, inspector_access_type::list) {
+  if (auto wrapped_values = x.to_list()) {
+    using value_type = typename T::value_type;
+    T result;
+    result.reserve(wrapped_values->size());
+    for (const auto& wrapped_value : *wrapped_values)
+      if (auto maybe_value = get_as<value_type>(wrapped_value))
+        result.emplace_back(std::move(*maybe_value));
+      else
+        return {std::move(maybe_value.error())};
+    return {std::move(result)};
+  } else {
+    return {std::move(wrapped_values.error())};
+  }
+}
+
 /// Converts a @ref config_value to builtin types or user-defined types that
 /// opted into the type inspection API.
 template <class T>
@@ -299,8 +383,8 @@ expected<T> get_as(const config_value& value) {
   } else if constexpr (std::is_same<T, config_value::dictionary>::value) {
     return value.to_dictionary();
   } else {
-    auto err = make_error(sec::conversion_failed, "not implemented yet");
-    return {std::move(err)};
+    auto token = inspect_value_access_type<config_value_reader, T>();
+    return get_as<T>(value, token);
   }
 }
 

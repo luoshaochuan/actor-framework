@@ -323,7 +323,7 @@ SCENARIO("get_as can convert config values to timespans") {
       THEN("conversion fails") {
         CHECK_EQ(get_as<int64_t>(x), sec::conversion_failed);
         CHECK_EQ(get_as<double>(x), sec::conversion_failed);
-        CHECK_EQ(get_as<uri>(x), sec::conversion_failed);
+        // CHECK_EQ(get_as<uri>(x), sec::conversion_failed);
         CHECK_EQ(get_as<config_value::list>(x), sec::conversion_failed);
         CHECK_EQ(get_as<config_value::dictionary>(x), sec::conversion_failed);
       }
@@ -354,7 +354,7 @@ SCENARIO("get_as can convert config values to lists") {
   using list = config_value::list;
   GIVEN("a config value with value [1, 2, 3]") {
     auto x = make_config_value_list(1, 2, 3);
-    WHEN("using get_as with list") {
+    WHEN("using get_as with config_value::list") {
       THEN("conversion succeeds") {
         auto maybe_res = get_as<list>(x);
         if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
@@ -362,6 +362,17 @@ SCENARIO("get_as can convert config values to lists") {
           CHECK_EQ(get_as<int>(res[0]), 1);
           CHECK_EQ(get_as<int>(res[1]), 2);
           CHECK_EQ(get_as<int>(res[2]), 3);
+        }
+      }
+    }
+    WHEN("using get_as with vector<int>") {
+      THEN("conversion succeeds") {
+        auto maybe_res = get_as<std::vector<int>>(x);
+        if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
+          auto& res = *maybe_res;
+          CHECK_EQ(res[0], 1);
+          CHECK_EQ(res[1], 2);
+          CHECK_EQ(res[2], 3);
         }
       }
     }
@@ -379,64 +390,80 @@ SCENARIO("get_as can convert config values to lists") {
         }
       }
     }
+    WHEN("using get_as with vector<int>") {
+      THEN("conversion succeeds") {
+        auto maybe_res = get_as<std::vector<int>>(x);
+        if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
+          auto& res = *maybe_res;
+          CHECK_EQ(res[0], 1);
+          CHECK_EQ(res[1], 2);
+          CHECK_EQ(res[2], 3);
+        }
+      }
+    }
   }
 }
 
 SCENARIO("get_as can convert config values to dictionaries") {
   using string = config_value::string;
   using dictionary = config_value::dictionary;
-  GIVEN("a config value with value {a = 1, b = 2, c = 3}") {
-    auto dict = config_value::dictionary{
-      {"a", config_value{1}},
-      {"b", config_value{2}},
-      {"c", config_value{3}},
-    };
-    auto x = config_value{std::move(dict)};
-    WHEN("using get_as with dictionary") {
-      THEN("conversion succeeds") {
-        auto maybe_res = get_as<dictionary>(x);
-        if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
-          auto& res = *maybe_res;
-          CHECK_EQ(get_as<int>(res["a"]), 1);
-          CHECK_EQ(get_as<int>(res["b"]), 2);
-          CHECK_EQ(get_as<int>(res["c"]), 3);
-        }
-      }
-    }
-    WHEN("using get_as with list") {
-      THEN("CAF converts the dictionary to a list of key value pairs") {
-        auto maybe_res = get_as<list>(x);
-        if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
-          auto& res = *maybe_res;
-          if (auto kvp = unbox(get_as<list>(res[0]));
-              CHECK_EQ(kvp.size(), 2u)) {
-            CHECK_EQ(get_as<string>(kvp[0]), "a");
-            CHECK_EQ(get_as<int>(kvp[1]), 1);
-          }
-          if (auto kvp = unbox(get_as<list>(res[1]));
-              CHECK_EQ(kvp.size(), 2u)) {
-            CHECK_EQ(get_as<string>(kvp[0]), "b");
-            CHECK_EQ(get_as<int>(kvp[1]), 2);
-          }
-          if (auto kvp = unbox(get_as<list>(res[2]));
-              CHECK_EQ(kvp.size(), 2u)) {
-            CHECK_EQ(get_as<string>(kvp[0]), "c");
-            CHECK_EQ(get_as<int>(kvp[1]), 3);
+  auto dict = config_value::dictionary{
+    {"a", config_value{1}},
+    {"b", config_value{2}},
+    {"c", config_value{3}},
+  };
+  std::vector<config_value> given_values;
+  given_values.emplace_back(std::move(dict));
+  given_values.emplace_back("{a = 1, b = 2, c = 3}"s);
+  for (auto& x : given_values) {
+    GIVEN("a config value with value " << x) {
+      WHEN("using get_as with config_value::dictionary") {
+        THEN("conversion succeeds") {
+          auto maybe_res = get_as<dictionary>(x);
+          MESSAGE("maybe_res: " << maybe_res);
+          if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
+            auto& res = *maybe_res;
+            CHECK_EQ(get_as<int>(res["a"]), 1);
+            CHECK_EQ(get_as<int>(res["b"]), 2);
+            CHECK_EQ(get_as<int>(res["c"]), 3);
           }
         }
       }
-    }
-  }
-  GIVEN("a config value with value {a = 1, b = 2, c = 3}") {
-    auto x = config_value("{a = 1, b = 2, c = 3}"s);
-    WHEN("using get_as with dictionary") {
-      THEN("conversion succeeds") {
-        auto maybe_res = get_as<dictionary>(x);
-        if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
-          auto& res = *maybe_res;
-          CHECK_EQ(get_as<int>(res["a"]), 1);
-          CHECK_EQ(get_as<int>(res["b"]), 2);
-          CHECK_EQ(get_as<int>(res["c"]), 3);
+      WHEN("using get_as with config_value::list") {
+        THEN("CAF converts the dictionary to a list of lists") {
+          auto maybe_res = get_as<list>(x);
+          MESSAGE("maybe_res: " << maybe_res);
+          if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
+            auto& res = *maybe_res;
+            if (auto kvp = unbox(get_as<list>(res[0]));
+                CHECK_EQ(kvp.size(), 2u)) {
+              CHECK_EQ(get_as<string>(kvp[0]), "a");
+              CHECK_EQ(get_as<int>(kvp[1]), 1);
+            }
+            if (auto kvp = unbox(get_as<list>(res[1]));
+                CHECK_EQ(kvp.size(), 2u)) {
+              CHECK_EQ(get_as<string>(kvp[0]), "b");
+              CHECK_EQ(get_as<int>(kvp[1]), 2);
+            }
+            if (auto kvp = unbox(get_as<list>(res[2]));
+                CHECK_EQ(kvp.size(), 2u)) {
+              CHECK_EQ(get_as<string>(kvp[0]), "c");
+              CHECK_EQ(get_as<int>(kvp[1]), 3);
+            }
+          }
+        }
+      }
+      WHEN("using get_as with vector<tuple<string, int>>") {
+        THEN("CAF converts the dictionary to a list of tuples") {
+          using kvp_t = std::tuple<std::string, int>;
+          auto maybe_res = get_as<std::vector<kvp_t>>(x);
+          MESSAGE("maybe_res: " << maybe_res);
+          if (CHECK(maybe_res) && CHECK_EQ(maybe_res->size(), 3u)) {
+            auto& res = *maybe_res;
+            CHECK_EQ(res[0], kvp_t("a", 1));
+            CHECK_EQ(res[1], kvp_t("b", 2));
+            CHECK_EQ(res[2], kvp_t("c", 3));
+          }
         }
       }
     }

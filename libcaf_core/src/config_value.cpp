@@ -236,9 +236,24 @@ expected<config_value::list> config_value::to_list() const {
   auto f = detail::make_overload(
     no_conversions<list, none_t, bool, integer, real, timespan, uri>(),
     [](const std::string& x) {
-      list tmp;
-      if (detail::parse(x, tmp) == none)
+      // Check whether we can parse the string as a list. If that fails, try
+      // whether we can parse it as a dictionary instead (and then convert that
+      // to a list).
+      config_value::list tmp;
+      if (detail::parse(x, tmp, detail::require_opening_char) == none)
         return result_type{std::move(tmp)};
+      config_value::dictionary dict;
+      if (detail::parse(x, dict, detail::require_opening_char) == none) {
+        tmp.clear();
+        for (const auto& [key, val] : dict) {
+          list kvp;
+          kvp.reserve(2);
+          kvp.emplace_back(key);
+          kvp.emplace_back(val);
+          tmp.emplace_back(std::move(kvp));
+        }
+        return result_type{std::move(tmp)};
+      }
       std::string msg = "cannot convert ";
       detail::print_escaped(msg, x);
       msg += " to a list";
@@ -266,7 +281,7 @@ expected<config_value::dictionary> config_value::to_dictionary() const {
                    list>(),
     [](const std::string& x) {
       dictionary tmp;
-      if (detail::parse(x, tmp) == none)
+      if (detail::parse(x, tmp, detail::require_opening_char) == none)
         return result_type{std::move(tmp)};
       std::string msg = "cannot convert ";
       detail::print_escaped(msg, x);
