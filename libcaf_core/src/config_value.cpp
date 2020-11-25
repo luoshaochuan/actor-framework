@@ -292,6 +292,19 @@ expected<config_value::dictionary> config_value::to_dictionary() const {
   return visit(f, data_);
 }
 
+bool config_value::can_convert_to_dictionary() const {
+  auto f = detail::make_overload( //
+    [](const auto&) { return false; },
+    [this](const std::string&) {
+      // TODO: implement some dry-run mode and use it here to avoid creating an
+      //       actual dictionary only to throw it away.
+      auto maybe_dict = to_dictionary();
+      return static_cast<bool>(maybe_dict);
+    },
+    [](const dictionary&) { return true; });
+  return visit(f, data_);
+}
+
 // -- related free functions ---------------------------------------------------
 
 bool operator<(const config_value& x, const config_value& y) {

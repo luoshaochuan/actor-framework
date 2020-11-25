@@ -416,7 +416,7 @@ SCENARIO("get_as can convert config values to dictionaries") {
   given_values.emplace_back(std::move(dict));
   given_values.emplace_back("{a = 1, b = 2, c = 3}"s);
   for (auto& x : given_values) {
-    GIVEN("a config value with value " << x) {
+    GIVEN("the config value " << x) {
       WHEN("using get_as with config_value::dictionary") {
         THEN("conversion succeeds") {
           auto maybe_res = get_as<dictionary>(x);
@@ -464,6 +464,62 @@ SCENARIO("get_as can convert config values to dictionaries") {
             CHECK_EQ(res[1], kvp_t("b", 2));
             CHECK_EQ(res[2], kvp_t("c", 3));
           }
+        }
+      }
+    }
+  }
+}
+
+SCENARIO("get_as can convert config values to custom types") {
+  std::vector<std::pair<weekday, std::string>> weekday_values{
+    {weekday::monday, "monday"s},       {weekday::tuesday, "tuesday"s},
+    {weekday::wednesday, "wednesday"s}, {weekday::thursday, "thursday"s},
+    {weekday::friday, "friday"s},       {weekday::saturday, "saturday"s},
+    {weekday::sunday, "sunday"s}};
+  for (const auto& [enum_val, str_val] : weekday_values) {
+    config_value x{str_val};
+    GIVEN("the config value " << x) {
+      WHEN("using get_as with weekday") {
+        THEN("CAF picks up the custom inspect_value overload for conversion") {
+          auto maybe_res = get_as<weekday>(x);
+          if (CHECK(maybe_res))
+            CHECK_EQ(*maybe_res, enum_val);
+        }
+      }
+    }
+  }
+  config_value::dictionary my_request_dict;
+  my_request_dict["a"] = config_value{10};
+  my_request_dict["b"] = config_value{20};
+  auto my_request_val = config_value{my_request_dict};
+  GIVEN("the config value " << my_request_val) {
+    WHEN("using get_as with my_request") {
+      THEN("CAF picks up the custom inspect overload for conversion") {
+        auto maybe_res = get_as<my_request>(my_request_val);
+        if (CHECK(maybe_res))
+          CHECK_EQ(*maybe_res, my_request(10, 20));
+      }
+    }
+  }
+  std::vector<config_value> obj_vals{config_value{my_request_val},
+                                     config_value{config_value::dictionary{}},
+                                     config_value{"{}"s}};
+  for (auto& x : obj_vals) {
+    GIVEN("the config value " << x) {
+      WHEN("using get_as with dummy_tag_type") {
+        THEN("CAF only checks whether the config value is dictionary-ish") {
+          CHECK(get_as<dummy_tag_type>(my_request_val));
+        }
+      }
+    }
+  }
+  std::vector<config_value> non_obj_vals{config_value{}, config_value{42},
+                                         config_value{"[1,2,3]"s}};
+  for (auto& x : non_obj_vals) {
+    GIVEN("the config value " << x) {
+      WHEN("using get_as with dummy_tag_type") {
+        THEN("conversion fails") {
+          CHECK_EQ(get_as<dummy_tag_type>(x), sec::conversion_failed);
         }
       }
     }

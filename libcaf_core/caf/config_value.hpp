@@ -174,6 +174,9 @@ public:
   /// @private
   expected<dictionary> to_dictionary() const;
 
+  /// @private
+  bool can_convert_to_dictionary() const;
+
 private:
   // -- properties -------------------------------------------------------------
 
@@ -282,21 +285,46 @@ expected<T> get_as(const config_value&, inspector_access_type::array) {
                 "cannot return an array from a function");
 }
 
-// inspector_access_type::builtin
+template <class T, class AcessToken>
+expected<T> get_as(const config_value& x, AcessToken token) {
+  auto tmp = T{};
+  config_value_reader reader{&x};
+  if (detail::load_value(reader, tmp, token))
+    return {std::move(tmp)};
+  else
+    return {reader.move_error()};
+}
 
-// inspector_access_type::specialization
+template <class T>
+expected<T> get_as(const config_value& x, inspector_access_type::integral) {
+  if (auto result = x.to_integer()) {
+    if (detail::bounds_checker<T>::check(*result))
+      return *result;
+    else
+      return make_error(sec::conversion_failed, "narrowing error");
+  } else {
+    return std::move(result.error());
+  }
+}
 
-// inspector_access_type::inspect_value
+template <class T>
+expected<T> get_as(const config_value&, inspector_access_type::enumeration) {
+  static_assert(detail::always_false_v<T>,
+                "config_value has no default conversion to and from enum types "
+                "because it would be unsafe");
+}
 
-// inspector_access_type::inspect
-
-// inspector_access_type::trivial
-
-// inspector_access_type::integral
-
-// inspector_access_type::enumeration
-
-// inspector_access_type::empty
+template <class T>
+expected<T> get_as(const config_value& x, inspector_access_type::empty) {
+  // Technically, we could always simply return T{} here. However,
+  // *semantically* it only makes sense to converts dictionaries to objects. So
+  // at least we check for this condition here.
+  if (x.can_convert_to_dictionary())
+    return T{};
+  else
+    return make_error(sec::conversion_failed,
+                      "invalid element type: expected a dictionary");
+}
 
 template <class T, size_t... Is>
 expected<T>
@@ -347,15 +375,6 @@ expected<T> get_as(const config_value& value) {
   if constexpr (std::is_same<T, bool>::value) {
     if (auto result = value.to_boolean()) {
       return *result;
-    } else {
-      return std::move(result.error());
-    }
-  } else if constexpr (std::is_integral<T>::value) {
-    if (auto result = value.to_integer()) {
-      if (detail::bounds_checker<T>::check(*result))
-        return *result;
-      else
-        return make_error(sec::conversion_failed, "narrowing error");
     } else {
       return std::move(result.error());
     }
