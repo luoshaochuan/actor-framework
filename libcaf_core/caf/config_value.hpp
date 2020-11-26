@@ -262,7 +262,7 @@ using nested_cli_parsing_t = std::true_type;
 /// `parse_cli`.
 constexpr auto nested_cli_parsing = nested_cli_parsing_t{};
 
-// -- conversion ---------------------------------------------------------------
+// -- conversion via get_as ----------------------------------------------------
 
 template <class T>
 expected<T> get_as(const config_value& value);
@@ -397,6 +397,7 @@ expected<T> get_as(const config_value& x, inspector_access_type::list) {
 
 /// Converts a @ref config_value to builtin types or user-defined types that
 /// opted into the type inspection API.
+/// @relates config_value
 template <class T>
 expected<T> get_as(const config_value& value) {
   if constexpr (std::is_same<T, bool>::value) {
@@ -431,6 +432,61 @@ expected<T> get_as(const config_value& value) {
   } else {
     auto token = inspect_value_access_type<config_value_reader, T>();
     return get_as<T>(value, token);
+  }
+}
+
+// -- conversion via get_or ----------------------------------------------------
+
+/// Customization point for configuring automatic mappings from default value
+/// types to deduced types. For example, `get_or(value, "foo"sv)` must return a
+/// `string` rather than a `string_view`. However, user-defined overloads *must
+/// not* specialize this class for any type from the namespaces `std` or `caf`.
+template <class T>
+struct get_or_deduction_guide {
+  using value_type = T;
+  template <class V>
+  static decltype(auto) convert(V&& x) {
+    return std::forward<V>(x);
+  }
+};
+
+template <>
+struct get_or_deduction_guide<string_view> {
+  using value_type = std::string;
+  static value_type convert(string_view str) {
+    return {str.begin(), str.end()};
+  }
+};
+
+template <class T>
+struct get_or_deduction_guide<span<T>> {
+  using value_type = std::vector<T>;
+  static value_type convert(span<T> buf) {
+    return {buf.begin(), buf.end()};
+  }
+};
+
+/// Configures @ref get_or to uses the @ref get_or_deduction_guide.
+struct get_or_auto_deduce {};
+
+/// Converts a @ref config_value to `To` or returns `fallback` if the conversion
+/// fails.
+/// @relates config_value
+template <class To = get_or_auto_deduce, class Fallback>
+auto get_or(const config_value& x, Fallback&& fallback) {
+  if constexpr (std::is_same<To, get_or_auto_deduce>::value) {
+    using guide = get_or_deduction_guide<std::decay_t<Fallback>>;
+    using value_type = typename guide::value_type;
+    if (auto val = get_as<value_type>(x))
+      return std::move(*val);
+    else
+      return guide::convert(std::forward<Fallback>(fallback));
+  } else {
+    using value_type = std::decay_t<Fallback>;
+    if (auto val = get_as<value_type>(x))
+      return std::move(*val);
+    else
+      return std::forward<Fallback>(fallback);
   }
 }
 

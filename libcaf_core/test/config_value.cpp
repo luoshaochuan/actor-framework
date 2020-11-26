@@ -468,7 +468,6 @@ SCENARIO("get_as can convert config values to dictionaries") {
 }
 
 SCENARIO("get_as can convert config values to maps") {
-  using dictionary = config_value::dictionary;
   auto dict = config_value::dictionary{
     {"1", config_value{1}},
     {"2", config_value{4}},
@@ -578,6 +577,37 @@ SCENARIO("get_as can convert config values to custom types") {
         THEN("conversion fails") {
           CHECK_EQ(get_as<dummy_tag_type>(x), sec::conversion_failed);
         }
+      }
+    }
+  }
+}
+
+SCENARIO("get_or converts or returns a fallback value") {
+  using namespace caf::literals;
+  GIVEN("the config value 42") {
+    config_value x{42};
+    WHEN("using get_or with type int") {
+      THEN("CAF ignores the default value") {
+        CHECK_EQ(get_or(x, 10), 42);
+      }
+    }
+    WHEN("using get_or with type string") {
+      THEN("CAF ignores the default value") {
+        CHECK_EQ(get_or(x, "foo"s), "42"s);
+      }
+    }
+    WHEN("using get_or with type bool") {
+      THEN("CAF returns the default value") {
+        CHECK_EQ(get_or(x, false), false);
+      }
+    }
+    WHEN("using get_or with type span<int>") {
+      int fallback_arr[] = {10, 20, 30};
+      auto fallback = make_span(fallback_arr);
+      THEN("CAF returns the default value after converting it to vector<int>") {
+        auto result = get_or(x, fallback);
+        static_assert(std::is_same<decltype(result), std::vector<int>>::value);
+        CHECK_EQ(result, std::vector<int>({10, 20, 30}));
       }
     }
   }
