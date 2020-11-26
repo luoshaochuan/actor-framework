@@ -349,7 +349,34 @@ expected<T> get_as(const config_value& x, inspector_access_type::tuple) {
   }
 }
 
-// inspector_access_type::map
+template <class T>
+expected<T> get_as(const config_value& x, inspector_access_type::map) {
+  using key_type = typename T::key_type;
+  using mapped_type = typename T::mapped_type;
+  T result;
+  if (auto dict = x.to_dictionary()) {
+    for (auto&& [string_key, wrapped_value] : *dict) {
+      config_value wrapped_key{std::move(string_key)};
+      if (auto key = get_as<key_type>(wrapped_key)) {
+        if (auto val = get_as<mapped_type>(wrapped_value)) {
+          if (!result.emplace(std::move(*key), std::move(*val)).second) {
+            return make_error(sec::conversion_failed,
+                              "ambiguous mapping of keys to key_type");
+          }
+        } else {
+          return make_error(sec::conversion_failed,
+                            "failed to convert values to mapped_type");
+        }
+      } else {
+        return make_error(sec::conversion_failed,
+                          "failed to convert keys to key_type");
+      }
+    }
+    return {std::move(result)};
+  } else {
+    return {std::move(dict.error())};
+  }
+}
 
 template <class T>
 expected<T> get_as(const config_value& x, inspector_access_type::list) {
