@@ -19,10 +19,10 @@
 
 #include "caf/config_value.hpp"
 
+#include <cctype>
 #include <cmath>
 #include <ostream>
 
-#include "caf/deep_to_string.hpp"
 #include "caf/detail/config_consumer.hpp"
 #include "caf/detail/overload.hpp"
 #include "caf/detail/parse.hpp"
@@ -31,6 +31,7 @@
 #include "caf/expected.hpp"
 #include "caf/parser_state.hpp"
 #include "caf/pec.hpp"
+#include "caf/settings.hpp"
 #include "caf/string_view.hpp"
 
 namespace caf {
@@ -211,26 +212,6 @@ expected<timespan> config_value::to_timespan() const {
   return visit(f, data_);
 }
 
-expected<std::string> config_value::to_string() const {
-  auto f = detail::make_overload( //
-    [](const none_t&) { return std::string{"null"}; },
-    [](const auto& x) {
-      std::string result;
-      detail::print(result, x);
-      return result;
-    },
-    [](const uri& x) { return caf::to_string(x); },
-    [](const std::string& x) { return x; },
-    [](const list& x) { return deep_to_string(x); },
-    [this](const dictionary&) {
-      // TODO: deep_to_string prints lists of pairs when passing the dictionary
-      //       directly.
-      return deep_to_string(*this);
-    });
-
-  return visit(f, data_);
-}
-
 expected<config_value::list> config_value::to_list() const {
   using result_type = expected<list>;
   auto f = detail::make_overload(
@@ -322,10 +303,13 @@ void to_string_impl(std::string& str, const config_value& x);
 struct to_string_visitor {
   std::string& str;
 
+  void operator()(const std::string& x) {
+    detail::print_escaped(str, x);
+  }
+
   template <class T>
   void operator()(const T& x) {
-    detail::stringification_inspector f{str};
-    f.value(x);
+    detail::print(str, x);
   }
 
   void operator()(none_t) {
@@ -338,36 +322,38 @@ struct to_string_visitor {
   }
 
   void operator()(const config_value::list& xs) {
-    if (xs.empty()) {
-      str += "[]";
-      return;
-    }
     str += '[';
-    auto i = xs.begin();
-    to_string_impl(str, *i);
-    for (++i; i != xs.end(); ++i) {
-      str += ", ";
+    if (!xs.empty()) {
+      auto i = xs.begin();
       to_string_impl(str, *i);
+      for (++i; i != xs.end(); ++i) {
+        str += ", ";
+        to_string_impl(str, *i);
+      }
     }
     str += ']';
   }
 
+  void append_key(const std::string& key) {
+    if (std::all_of(key.begin(), key.end(), ::isalnum))
+      str.append(key.begin(), key.end());
+    else
+      (*this)(key);
+  }
+
   void operator()(const config_value::dictionary& xs) {
-    if (xs.empty()) {
-      str += "{}";
-      return;
-    }
-    detail::stringification_inspector f{str};
     str += '{';
-    auto i = xs.begin();
-    f.value(i->first);
-    str += " = ";
-    to_string_impl(str, i->second);
-    for (++i; i != xs.end(); ++i) {
-      str += ", ";
-      f.value(i->first);
+    if (!xs.empty()) {
+      auto i = xs.begin();
+      append_key(i->first);
       str += " = ";
       to_string_impl(str, i->second);
+      for (++i; i != xs.end(); ++i) {
+        str += ", ";
+        append_key(i->first);
+        str += " = ";
+        to_string_impl(str, i->second);
+      }
     }
     str += '}';
   }
@@ -381,8 +367,19 @@ void to_string_impl(std::string& str, const config_value& x) {
 } // namespace
 
 std::string to_string(const config_value& x) {
+  if (auto str = get_if<std::string>(std::addressof(x.get_data()))) {
+    return *str;
+  } else {
+    std::string result;
+    to_string_impl(result, x);
+    return result;
+  }
+}
+
+std::string to_string(const settings& xs) {
   std::string result;
-  to_string_impl(result, x);
+  to_string_visitor f{result};
+  f(xs);
   return result;
 }
 

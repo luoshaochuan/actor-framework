@@ -151,6 +151,16 @@ public:
     return &data_;
   }
 
+  /// Checks whether this config value is not null.
+  explicit operator bool() const noexcept {
+    return data_.index() != 0;
+  }
+
+  /// Checks whether this config value is null.
+  bool operator!() const noexcept {
+    return data_.index() == 0;
+  }
+
   // -- utility for get_as -----------------------------------------------------
 
   /// @private
@@ -164,9 +174,6 @@ public:
 
   /// @private
   expected<timespan> to_timespan() const;
-
-  /// @private
-  expected<std::string> to_string() const;
 
   /// @private
   expected<list> to_list() const;
@@ -245,6 +252,9 @@ private:
 
   variant_type data_;
 };
+
+/// @relates config_value
+CAF_CORE_EXPORT std::string to_string(const config_value& x);
 
 // -- convenience constants ----------------------------------------------------
 
@@ -424,7 +434,7 @@ expected<T> get_as(const config_value& value) {
   } else if constexpr (std::is_same<T, timespan>::value) {
     return value.to_timespan();
   } else if constexpr (std::is_same<T, std::string>::value) {
-    return value.to_string();
+    return {to_string(value)};
   } else if constexpr (std::is_same<T, config_value::list>::value) {
     return value.to_list();
   } else if constexpr (std::is_same<T, config_value::dictionary>::value) {
@@ -1192,9 +1202,6 @@ inline bool operator>=(const config_value& x, const config_value& y) {
 inline bool operator!=(const config_value& x, const config_value& y) {
   return !(x == y);
 }
-
-/// @relates config_value
-CAF_CORE_EXPORT std::string to_string(const config_value& x);
 
 /// @relates config_value
 CAF_CORE_EXPORT std::ostream& operator<<(std::ostream& out,
